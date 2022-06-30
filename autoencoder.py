@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 
 SIGNAL_LENGTH = 442368
 dataset_path = "VS10_tf"
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 EPOCH_LEN = 300
 EPOCH = int(300 / BATCH_SIZE)
 BUFFER_SIZE = 64
-NUM_EPOCHS = 20
+NUM_EPOCHS = 40
 
 GLOROT_INITIALIZER = 'glorot_normal'
 
@@ -106,23 +106,23 @@ def train():
     input = Input((SIGNAL_LENGTH, 1))
     ae = autoencoder(input)
     model = Model(inputs=input, outputs=ae)
-    optimizer = Nadam(learning_rate=1*1e-5, schedule_decay=1e-5)
+    optimizer = Nadam(learning_rate=1*1e-4, schedule_decay=1e-5)
 
     ckpt = tf.train.Checkpoint(model=model, optimizer=optimizer, it=it)
-    manager = tf.train.CheckpointManager(ckpt, "vs10_unet_13_may", max_to_keep=100)
+    manager = tf.train.CheckpointManager(ckpt, "vs10_unet_15_may", max_to_keep=100)
     manager.restore_or_initialize()
 
-    step = 0
-    losses = []
-    for batch in generator(it):
-        batch_start_time = time.time()
-        loss = train_step(model, batch[0], optimizer)
-        losses.append(loss.numpy())
-        step += 1
-        print("loss is: ", losses[-1], "batch number is:", step)
-        if (step % EPOCH == 0):
-            manager.save()
-    np.save("losses.npy", losses)
+#    step = 0
+#    losses = []
+#    for batch in generator(it):
+#        batch_start_time = time.time()
+#        loss = train_step(model, batch[0], optimizer)
+#        losses.append(loss.numpy())
+#        step += 1
+#        print("loss is: ", losses[-1], "batch number is:", step)
+#        if (step % EPOCH == 0):
+#            manager.save()
+#    np.save("losses.npy", losses)
 
 
     #temp code
@@ -142,6 +142,7 @@ def train():
     plt.plot(i_c[281000:281500], 'r', label = 'original')
     plt.plot(o_c[281000:281500], 'b', label = 'rekonstruisani')
     plt.legend()
+    plt.show(block=True)
     plt.savefig('test.pdf')
 
 def main():
