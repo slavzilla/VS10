@@ -112,9 +112,9 @@ def train():
     manager = tf.train.CheckpointManager(ckpt, "vs10_unet_15_may", max_to_keep=100)
     manager.restore_or_initialize()
 
-   step = 0
-   losses = []
-   for batch in generator(it):
+    step = 0
+    losses = []
+    for batch in generator(it):
        batch_start_time = time.time()
        loss = train_step(model, batch[0], optimizer)
        losses.append(loss.numpy())
@@ -122,7 +122,7 @@ def train():
        print("loss is: ", losses[-1], "batch number is:", step)
        if (step % EPOCH == 0):
            manager.save()
-   np.save("losses.npy", losses)
+    np.save("losses.npy", losses)
 
 
     #temp code
