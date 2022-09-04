@@ -112,38 +112,38 @@ def train():
     manager = tf.train.CheckpointManager(ckpt, "vs10_unet_15_may", max_to_keep=100)
     manager.restore_or_initialize()
 
-#    step = 0
-#    losses = []
-#    for batch in generator(it):
-#        batch_start_time = time.time()
-#        loss = train_step(model, batch[0], optimizer)
-#        losses.append(loss.numpy())
-#        step += 1
-#        print("loss is: ", losses[-1], "batch number is:", step)
-#        if (step % EPOCH == 0):
-#            manager.save()
-#    np.save("losses.npy", losses)
+   step = 0
+   losses = []
+   for batch in generator(it):
+       batch_start_time = time.time()
+       loss = train_step(model, batch[0], optimizer)
+       losses.append(loss.numpy())
+       step += 1
+       print("loss is: ", losses[-1], "batch number is:", step)
+       if (step % EPOCH == 0):
+           manager.save()
+   np.save("losses.npy", losses)
 
 
     #temp code
 
 
-    it = iter(dataset)
+#     it = iter(dataset)
 
-    for batch in generator(it):
-        break
+#     for batch in generator(it):
+#         break
 
-    output = model(batch[0])
-    result = output[0].numpy()
-    input = batch[0].numpy()
-    o_c = result[0]
-    i_c = input[0]
-    plt.rcParams["figure.figsize"] = (20,8)
-    plt.plot(i_c[281000:281500], 'r', label = 'original')
-    plt.plot(o_c[281000:281500], 'b', label = 'rekonstruisani')
-    plt.legend()
-    plt.show(block=True)
-    plt.savefig('test.pdf')
+#     output = model(batch[0])
+#     result = output[0].numpy()
+#     input = batch[0].numpy()
+#     o_c = result[0]
+#     i_c = input[0]
+#     plt.rcParams["figure.figsize"] = (20,8)
+#     plt.plot(i_c[281000:281500], 'r', label = 'original')
+#     plt.plot(o_c[281000:281500], 'b', label = 'rekonstruisani')
+#     plt.legend()
+#     plt.show(block=True)
+#     plt.savefig('test.pdf')
 
 def main():
     train()
