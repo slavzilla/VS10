@@ -196,16 +196,16 @@ def train():
             loc_patience += 1
           regr_model.trainable = True
     
-    manager_regr.restore_or_initialize()
+      manager_regr.restore_or_initialize()
 
-    regr_model.trainable = False
+      regr_model.trainable = False
 
-    print("==============Testing Start==============")
+      print("==============Testing Start==============")
 
-    se = test_step_regressor(regr_model, test_sound_data, test_speed_data)
-    RMSE = np.sqrt(se / test_sound_data.shape[0])
-    print('RMSE for car', car, 'is: ', RMSE)
-    results[car].append(RMSE)
+      se = test_step_regressor(regr_model, test_sound_data, test_speed_data)
+      RMSE = np.sqrt(se / test_sound_data.shape[0])
+      print('RMSE for car', car, 'is: ', RMSE)
+      results[car].append(RMSE)
   print(results)
   np.save("results.npy", results)
 
