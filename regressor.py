@@ -194,7 +194,7 @@ def train():
             manager_regr.save()
           else:
             loc_patience += 1
-        regr_model.trainable = True
+          regr_model.trainable = True
     
     manager_regr.restore_or_initialize()
 
