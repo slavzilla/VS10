@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import os
 from random import shuffle
-from tensorflow.keras.layers import Input, Conv1D, Conv1DTranspose, Concatenate, AlphaDropout
+from tensorflow.keras.layers import Input, Conv1D, MaxPool1D, Conv1DTranspose, Concatenate, AlphaDropout
 from tensorflow.keras.losses import MeanAbsoluteError
 from tensorflow.keras.initializers import LecunNormal
 from tensorflow.keras.models import Model
@@ -24,46 +24,44 @@ def train_step(model, input, optimizer):
     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
   return loss
 
-def get_autoencoder(ss=[SIGNAL_LENGTH, 1]): 
-  
-    input=Input(shape=ss)
 
-    conv_0 = Conv1D(filters=8, kernel_size=121, strides=1, padding='same', activation='selu', kernel_initializer=LecunNormal())(input) 
+def double_conv_block(signal, kernel, filters):
+  output = Conv1D(filters=filters, kernel_size=kernel, padding='same', activation='selu', kernel_initializer=LecunNormal())(signal)
+  output = Conv1D(filters=filters, kernel_size=kernel, padding='same', activation='selu', kernel_initializer=LecunNormal())(output)
+  return output
 
-    conv_1 = Conv1D(filters=16, kernel_size=61, strides=16, padding='same', activation='selu', kernel_initializer=LecunNormal())(conv_0) 
+def downsample_block(signal, kernel, filters, downsample):
+  f = double_conv_block(signal, kernel, filters)
+  p = MaxPool1D(downsample)(f)
+  p = AlphaDropout(rate=0.3)(p)
+  return f, p
 
-    conv_2 = Conv1D(filters=32, kernel_size=61, strides=8, padding='same', activation='selu', kernel_initializer=LecunNormal())(conv_1) 
+def upsample_block(signal, features, kernel, filters, upsample):
+  output = Conv1DTranspose(filters=filters, kernel_size=kernel, strides=upsample, padding='same', activation='selu', kernel_initializer=LecunNormal())(signal)
+  output = Concatenate()([output, features])
+  output = AlphaDropout(rate=0.3)(output)
+  output = double_conv_block(output, kernel, filters)
+  return output
 
-    conv_3 = Conv1D(filters=64, kernel_size=61, strides=4, padding='same', activation='selu', kernel_initializer=LecunNormal())(conv_2)
+def get_ae(ss=[SIGNAL_LENGTH, 1]):
+  input=Input(shape=ss)
+  f1, p1 = downsample_block(input, 441, 8, 32)
+  f2, p2 = downsample_block(p1, 61, 16, 8)
+  f3, p3 = downsample_block(p2, 19, 32, 2)
+  f4, p4 = downsample_block(p3, 11, 64, 2)
+  f5, p5 = downsample_block(p4, 9, 128, 2)
+  f6, p6 = downsample_block(p5, 3, 256, 2)
+  bottleneck = double_conv_block(p6, 3, 512)
+  u8 = upsample_block(bottleneck, f6, 3, 256, 2)
+  u9 = upsample_block(u8, f5, 9, 128, 2)
+  u10 = upsample_block(u9, f4, 11, 64, 2)
+  u11 = upsample_block(u10, f3, 19, 32, 2)
+  u12 = upsample_block(u11, f2, 61, 16, 8)
+  u13 = upsample_block(u12, f1, 441, 8, 32)
 
-    conv_4 = Conv1D(filters=128, kernel_size=61, strides=4, padding='same', activation='selu', kernel_initializer=LecunNormal())(conv_3)
+  output = Conv1D(filters=1, kernel_size=441, strides=1, padding='same', activation=tanh, kernel_initializer=GLOROT_INITIALIZER)(u13)
 
-    conv_5 = Conv1D(filters=256, kernel_size=61, strides=4, padding='same', activation='selu', kernel_initializer=LecunNormal())(conv_4) 
-
-    upsampling_0 = Conv1DTranspose(filters=128, kernel_size=61, strides=4, padding='same', activation='selu', kernel_initializer=LecunNormal())(conv_5)
-    upsampling_0 = Concatenate()([upsampling_0, conv_4])
-
-    upsampling_0 = AlphaDropout(rate=0.4)(upsampling_0)
-
-    upsampling_1 = Conv1DTranspose(filters=64, kernel_size=61, strides=4, padding='same', activation='selu', kernel_initializer=LecunNormal())(upsampling_0)
-    upsampling_1 = Concatenate()([upsampling_1, conv_3])
-
-    upsampling_1 = AlphaDropout(rate=0.4)(upsampling_1)
-
-    upsampling_2 = Conv1DTranspose(filters=32, kernel_size=61, strides=4, padding='same', activation='selu', kernel_initializer=LecunNormal())(upsampling_1)
-    upsampling_2 = Concatenate()([upsampling_2, conv_2])
-
-    upsampling_2 = AlphaDropout(rate=0.4)(upsampling_2)
-
-    upsampling_3 = Conv1DTranspose(filters=16, kernel_size=61, strides=8, padding='same', activation='selu', kernel_initializer=LecunNormal())(upsampling_2)
-    upsampling_3 = Concatenate()([upsampling_3, conv_1])
-
-    upsampling_4 = Conv1DTranspose(filters=8, kernel_size=61, strides=16, padding='same', activation='selu', kernel_initializer=LecunNormal())(upsampling_3)
-    upsampling_4 = Concatenate()([upsampling_4, conv_0])
-
-    output = Conv1D(filters=1, kernel_size=121, strides=1, padding='same', activation=tanh, kernel_initializer=GLOROT_INITIALIZER)(upsampling_4) 
-
-    return  Model(inputs = input, outputs = [output, conv_5])
+  return  Model(inputs = input, outputs = [output, bottleneck])
 
 def train():
     filenames = []
@@ -74,19 +72,19 @@ def train():
     shuffle(filenames)
     dataset = tf.data.TFRecordDataset(train_dataset)
     dataset = dataset.map(_parse_function_)
-    dataset = dataset.repeat(count=NUM_EPOCHS)
+    dataset = dataset.repeat(count=80)
     dataset = dataset.shuffle(buffer_size=BUFFER_SIZE)
     dataset = dataset.batch(BATCH_SIZE, drop_remainder=True)
     it = iter(dataset)
 
-    autoencoder = get_autoencoder()
+    autoencoder = get_ae()
     input = Input((SIGNAL_LENGTH, 1))
     ae = autoencoder(input)
     model = Model(inputs=input, outputs=ae)
-    optimizer = Nadam(learning_rate=1*1e-4, schedule_decay=1e-5)
+    optimizer = Nadam(learning_rate=1*1e-5)
 
     ckpt = tf.train.Checkpoint(model=model, optimizer=optimizer, it=it)
-    manager = tf.train.CheckpointManager(ckpt, "vs10_unet_15_may", max_to_keep=100)
+    manager = tf.train.CheckpointManager(ckpt, "vs10_ae", max_to_keep=2)
     manager.restore_or_initialize()
 
     step = 0
@@ -99,6 +97,18 @@ def train():
        if (step % EPOCH == 0):
            manager.save()
     np.save("losses.npy", losses)
+
+def get_model():
+  autoencoder = get_ae()
+  input = Input((SIGNAL_LENGTH, 1))
+  ae = autoencoder(input)
+  model = Model(inputs=input, outputs=ae)
+  model.trainable = False
+  ckpt = tf.train.Checkpoint(model=model)
+  manager = tf.train.CheckpointManager(ckpt, "vs10_ae", max_to_keep=2)
+  manager.restore_or_initialize()
+  return  model
+
 
 def main():
     train()
