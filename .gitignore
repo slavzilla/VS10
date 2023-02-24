@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# PDF
+*.pdf
+
 # Distribution / packaging
 .Python
 build/
@@ -131,3 +134,9 @@ dmypy.json
 #dataset
 VS10/
 VS10_tf/
+
+#checkpoints
+vs10*/
+
+#npy
+*.npy
